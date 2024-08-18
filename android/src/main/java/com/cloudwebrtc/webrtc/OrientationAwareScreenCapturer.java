@@ -31,6 +31,7 @@ public class OrientationAwareScreenCapturer implements VideoCapturer, VideoSink 
             DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC | DisplayManager.VIRTUAL_DISPLAY_FLAG_PRESENTATION;
     // DPI for VirtualDisplay, does not seem to matter for us.
     private static final int VIRTUAL_DISPLAY_DPI = 400;
+    private static final double SCALE_FACTOR = 0.4;
     private final Intent mediaProjectionPermissionResultData;
     private final MediaProjection.Callback mediaProjectionCallback;
     private int width;
@@ -113,11 +114,11 @@ public class OrientationAwareScreenCapturer implements VideoCapturer, VideoSink 
 
         this.isPortrait = isDeviceOrientationPortrait();
         if (this.isPortrait) {
-            this.width = width;
-            this.height = height;
+            this.width = (int) (width * SCALE_FACTOR);
+            this.height = (int) (height * SCALE_FACTOR);
         } else {
-            this.height = width;
-            this.width = height;
+            this.height = (int) (width * SCALE_FACTOR);
+            this.width = (int) (height * SCALE_FACTOR);
         }
 
         mediaProjection = mediaProjectionManager.getMediaProjection(
