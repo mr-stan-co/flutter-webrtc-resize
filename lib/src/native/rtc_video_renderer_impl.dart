@@ -6,11 +6,13 @@ import 'package:flutter/services.dart';
 import 'package:webrtc_interface/webrtc_interface.dart';
 
 import '../helper.dart';
+import '../video_renderer_extension.dart' show AudioControl;
 import 'utils.dart';
 
 class RTCVideoRenderer extends ValueNotifier<RTCVideoValue>
-    implements VideoRenderer {
+    implements VideoRenderer, AudioControl {
   RTCVideoRenderer() : super(RTCVideoValue.empty);
+  Completer? _initializing;
   int? _textureId;
   bool _disposed = false;
   MediaStream? _srcObject;
@@ -18,14 +20,17 @@ class RTCVideoRenderer extends ValueNotifier<RTCVideoValue>
 
   @override
   Future<void> initialize() async {
-    if (_textureId != null) {
+    if (_initializing != null) {
+      await _initializing!.future;
       return;
     }
+    _initializing = Completer();
     final response = await WebRTC.invokeMethod('createVideoRenderer', {});
     _textureId = response['textureId'];
     _eventSubscription = EventChannel('FlutterWebRTC/Texture$textureId')
         .receiveBroadcastStream()
         .listen(eventListener, onError: errorListener);
+    _initializing!.complete(null);
   }
 
   @override
@@ -171,5 +176,19 @@ class RTCVideoRenderer extends ValueNotifier<RTCVideoValue>
       return false;
     }
     return true;
+  }
+
+  @override
+  Future<void> setVolume(double value) async {
+    try {
+      if (_srcObject == null) {
+        throw Exception('Can\'t set volume: The MediaStream is null');
+      }
+      for (MediaStreamTrack track in _srcObject!.getAudioTracks()) {
+        await Helper.setVolume(value, track);
+      }
+    } catch (e) {
+      print('Helper.setVolume ${e.toString()}');
+    }
   }
 }

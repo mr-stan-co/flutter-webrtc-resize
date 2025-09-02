@@ -3,19 +3,23 @@
 #include "flutter_data_channel.h"
 #include "flutter_peerconnection.h"
 
+#include "helper.h"
+
 namespace flutter_webrtc_plugin {
 
 const char* kEventChannelName = "FlutterWebRTC.Event";
 
 FlutterWebRTCBase::FlutterWebRTCBase(BinaryMessenger* messenger,
-                                     TextureRegistrar* textures)
-    : messenger_(messenger), textures_(textures) {
+                                     TextureRegistrar* textures,
+                                     TaskRunner *task_runner)
+    : messenger_(messenger), task_runner_(task_runner), textures_(textures) {
   LibWebRTC::Initialize();
   factory_ = LibWebRTC::CreateRTCPeerConnectionFactory();
   audio_device_ = factory_->GetAudioDevice();
   video_device_ = factory_->GetVideoDevice();
   desktop_device_ = factory_->GetDesktopDevice();
-  event_channel_ = EventChannelProxy::Create(messenger_, kEventChannelName);
+  audio_processing_ = factory_->GetAudioProcessing();
+  event_channel_ = EventChannelProxy::Create(messenger_, task_runner_, kEventChannelName);
 }
 
 FlutterWebRTCBase::~FlutterWebRTCBase() {
@@ -27,7 +31,7 @@ EventChannelProxy* FlutterWebRTCBase::event_channel() {
 }
 
 std::string FlutterWebRTCBase::GenerateUUID() {
-  return uuidxx::uuid::Generate().ToString(false);
+  return libwebrtc::Helper::CreateRandomUuid().std_string();
 }
 
 RTCPeerConnection* FlutterWebRTCBase::PeerConnectionForId(
@@ -46,11 +50,11 @@ void FlutterWebRTCBase::RemovePeerConnectionForId(const std::string& id) {
     peerconnections_.erase(it);
 }
 
-RTCMediaTrack* FlutterWebRTCBase ::MediaTrackForId(const std::string& id) {
+scoped_refptr<RTCMediaTrack> FlutterWebRTCBase ::MediaTrackForId(const std::string& id) {
   auto it = local_tracks_.find(id);
 
   if (it != local_tracks_.end())
-    return (*it).second.get();
+    return (*it).second;
 
   for (auto kv : peerconnection_observers_) {
     auto pco = kv.second.get();

@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 
+import '../native_logs_listener.dart';
+
 class WebRTC {
   static const MethodChannel _channel = MethodChannel('FlutterWebRTC.Method');
 
@@ -24,7 +26,9 @@ class WebRTC {
 
   static Future<T?> invokeMethod<T, P>(String methodName,
       [dynamic param]) async {
-    await initialize();
+    await initialize(options: {
+      'logSeverity': NativeLogsListener.instance.severity,
+    });
 
     return _channel.invokeMethod<T>(
       methodName,
@@ -48,6 +52,8 @@ class WebRTC {
   /// "forceSWCodecList": a list of strings of software codecs that should use software.
   ///
   /// "androidAudioConfiguration": an AndroidAudioConfiguration object mapped with toMap()
+  ///
+  /// "bypassVoiceProcessing": a boolean that bypasses the audio processing for the audio device.
   static Future<void> initialize({Map<String, dynamic>? options}) async {
     if (!initialized) {
       await _channel.invokeMethod<void>('initialize', <String, dynamic>{
